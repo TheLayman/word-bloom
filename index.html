@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0e1a18" />
+<meta name="description" content="Word Bloom — a calm word puzzle. Swipe letters, find words, keep your streak." />
+<title>Word Bloom</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ------------------------------------------------------------ home -->
+  <section id="screen-home" class="screen home">
+    <h1 class="logo">Word<span>Bloom</span></h1>
+    <p class="tagline">Swipe the letters. Find every word.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="stat__n" id="stat-level">1</div><div class="stat__l">Level</div></div>
+      <div class="stat"><div class="stat__n" id="stat-coins">0</div><div class="stat__l">Coins</div></div>
+      <div class="stat"><div class="stat__n" id="stat-streak">0</div><div class="stat__l">Streak</div></div>
+      <div class="stat"><div class="stat__n" id="stat-session">0m 0s</div><div class="stat__l">Session</div></div>
+    </div>
+
+    <div class="home__actions">
+      <button class="btn btn--primary" id="btn-play" type="button"><span id="play-label">Play</span></button>
+      <button class="btn" id="btn-daily" type="button">Daily Challenge</button>
+      <p class="home__note" id="daily-note"></p>
+      <button class="btn btn--ghost" id="btn-stats" type="button">Pilot stats &amp; telemetry</button>
+      <button class="btn btn--ghost" id="btn-sound" type="button">Sound on</button>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ game -->
+  <section id="screen-game" class="screen is-hidden">
+    <div id="game-mount"></div>
+  </section>
+
+  <div id="adapter-note"></div>
+</div>
+
+<div id="overlay" class="is-hidden"></div>
+<div id="toast"></div>
+
+<noscript>
+  <p style="color:#eef4f0;text-align:center;padding:30px;">Word Bloom needs JavaScript enabled.</p>
+</noscript>
+
+<!-- ===========================================================================
+     Platform SDKs
+     ---------------------------------------------------------------------------
+     The game runs with no SDK at all (ads fall back to a built-in simulation),
+     so nothing here is required for local testing.
+
+     Playgama Bridge — one SDK that publishes to 20+ portals (CrazyGames, Poki,
+     GameDistribution, Yandex, YouTube Playables, MSN, JioGames and more).
+     To enable: uncomment the tag below AND add playgama-bridge-config.json
+     (template included) next to this file. See README "Before you submit".
+
+     <script src="https://bridge.playgama.com/v2/stable/playgama-bridge.js"></script>
+
+     CrazyGames: the CrazyGames SDK is injected by the portal when your game is
+     hosted there — no tag needed. js/ads.js auto-detects window.CrazyGames.SDK.
+     =========================================================================== -->
+
+<script src="js/words.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/telemetry.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ads.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
