@@ -137,6 +137,10 @@
             '<span class="btn__icon">&#128161;</span> Hint <span class="btn__cost" data-hint-cost>25</span>',
           '</button>',
         '</div>',
+        // Announcements for assistive tech. The game is otherwise silent: a
+        // screen-reader player previously got no feedback at all on a correct
+        // word, and the whole thing is a word game.
+        '<div class="sr-only" role="status" aria-live="polite" aria-atomic="true" data-live></div>',
       '</div>'
     ].join('');
 
@@ -157,6 +161,7 @@
     el.submit = m.querySelector('[data-submit]');
     el.hint = m.querySelector('[data-hint]');
     el.hintCost = m.querySelector('[data-hint-cost]');
+    el.live = m.querySelector('[data-live]');
 
     el.hintCost.textContent = String(HINT_COST);
     el.shuffle.addEventListener('click', function () { manualShuffle(); });
@@ -234,6 +239,26 @@
     if (WB.telemetry) WB.telemetry.track(name, data);
   }
 
+  /**
+   * Push a message to the aria-live region. Synchronous, so the announced state
+   * is observable in the same tick. Screen readers only re-announce on a
+   * mutation, so an identical consecutive message gets an alternating
+   * zero-width suffix to force one.
+   */
+  var lastSaidRaw = null;
+  var saidFlip = false;
+  function say(message) {
+    if (!el.live) return;
+    var raw = String(message);
+    var text = raw;
+    if (raw === lastSaidRaw) {
+      saidFlip = !saidFlip;
+      text = saidFlip ? raw + '\u200B' : raw;
+    }
+    lastSaidRaw = raw;
+    el.live.textContent = text;
+  }
+
   /* -------------------------------------------------------------- rendering */
 
   function renderAll() {
@@ -252,7 +277,9 @@
       : (S.puzzle.words.length + ' words to find');
     var total = S.puzzle.words.length;
     var done = foundCount();
-    el.bar.style.width = (total ? (done / total) * 100 : 0) + '%';
+    // scaleX, not width: width triggers layout+paint on every frame, and
+    // animating it is on the explicit do-not list for UI motion.
+    el.bar.style.transform = 'scaleX(' + (total ? (done / total) : 0) + ')';
     // Coins live in persisted progress (owned by the shell), so read them back.
     el.coins.textContent = String(cb.getCoins ? cb.getCoins() : 0);
     el.hint.classList.toggle('btn--poor', !(cb.getCoins && cb.getCoins() >= HINT_COST));
@@ -475,6 +502,7 @@
         slotEl.classList.add('slot--bloom');
         bloomBurst(slotEl, S.level + ':' + word, word.length * 2);
       }
+      say('Found ' + word + '. ' + foundCount() + ' of ' + S.puzzle.words.length + ' words.');
       report('word_found', { word: word, level: S.level, mode: S.mode, letters: word.length, elapsedMs: Date.now() - S.startedAt });
       if (cb.onWordFound) cb.onWordFound(word, false);
       checkComplete();
@@ -488,6 +516,7 @@
       bloomBurst(el.wordbar, 7, 7);
       clearSelection();
       renderBonus();
+      say('Bonus word ' + word + '.');
       report('bonus_found', { word: word, level: S.level, mode: S.mode });
       if (cb.onWordFound) cb.onWordFound(word, true);
       return;
@@ -501,6 +530,8 @@
     if (WB.audio) WB.audio.invalid();
     el.wordbar.classList.add('wordbar--bad');
     setTimeout(function () { el.wordbar.classList.remove('wordbar--bad'); }, 380);
+    if (reason === 'already_found') say(word + ' is already found.');
+    else say(word + ' is not one of the words here.');
     report('word_rejected', { word: word, reason: reason, level: S.level });
     var sel = S.selection.slice();
     clearSelection();
@@ -547,6 +578,7 @@
       perfect: S.hintsUsed === 0
     };
 
+    say('Level complete. ' + S.puzzle.words.length + ' words found.');
     report('level_complete', result);
     if (cb.onLevelComplete) cb.onLevelComplete(result);
   }
@@ -634,6 +666,7 @@
       seededRandom: seededRandom,
       poolFromLetters: poolFromLetters,
       renderSelection: renderSelection,
+      say: say,
       currentWord: currentWord
     }
   };
