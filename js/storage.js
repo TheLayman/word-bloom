@@ -56,6 +56,10 @@
       streak: 0,
       lastDailyKey: null,
       levelsCleared: 0,
+      // One entry per completed level; renders as the garden on the home
+      // screen and doubles as a visible progress record.
+      garden: [],
+      seenIntro: false,
       wordsFound: 0,
       bonusFound: 0,
       hintsUsed: 0,
@@ -83,6 +87,7 @@
         if (!Object.prototype.hasOwnProperty.call(parsed, k)) parsed[k] = base[k];
       }
       if (!Array.isArray(parsed.daysPlayed)) parsed.daysPlayed = [];
+      if (!Array.isArray(parsed.garden)) parsed.garden = [];
       return parsed;
     } catch (e) {
       return defaults();

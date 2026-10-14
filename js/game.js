@@ -31,19 +31,7 @@
   /* ---------------------------------------------------------------- utils */
 
   /** Deterministic PRNG so a level's letter arrangement is stable on reload. */
-  function seededRandom(seed) {
-    var h = 2166136261;
-    for (var i = 0; i < seed.length; i++) {
-      h ^= seed.charCodeAt(i);
-      h = (h * 16777619) >>> 0;
-    }
-    return function () {
-      h ^= h << 13; h >>>= 0;
-      h ^= h >> 17;
-      h ^= h << 5; h >>>= 0;
-      return h / 4294967296;
-    };
-  }
+  var seededRandom = WB.seededRandom;
 
   function shuffle(arr, rnd) {
     var a = arr.slice();
@@ -58,6 +46,55 @@
     var p = {};
     for (var i = 0; i < letters.length; i++) p[letters[i]] = (p[letters[i]] || 0) + 1;
     return p;
+  }
+
+  /**
+   * The signature moment: when a word is found, petals burst from the slot and
+   * it settles into place. This is the animation that makes the name true and
+   * makes the game feel authored rather than generated — "feels like a
+   * prototype" is an explicit portal rejection reason.
+   */
+  function bloomBurst(anchor, seed, intensity) {
+    if (!anchor || !WB.garden) return;
+    var rect = anchor.getBoundingClientRect();
+    var b = WB.garden.bloomFor(seed);
+    var count = Math.max(8, Math.min(18, (intensity || 8)));
+
+    var wrap = document.createElement('div');
+    wrap.className = 'bloom-burst';
+    wrap.style.left = (rect.left + rect.width / 2) + 'px';
+    wrap.style.top = (rect.top + rect.height / 2) + 'px';
+    wrap.style.setProperty('--p', b.p);
+    wrap.style.setProperty('--c', b.c);
+
+    for (var i = 0; i < count; i++) {
+      var petal = document.createElement('i');
+      var angle = (360 / count) * i + (i % 3) * 9;
+      // Rotation goes through a custom property so the keyframe owns the
+      // transform (animations override inline styles).
+      petal.style.setProperty('--rot', angle + 'deg');
+      petal.style.animationDelay = (i * 11) + 'ms';
+      petal.style.setProperty('--dist', (26 + ((i * 37) % 26)) + 'px');
+      wrap.appendChild(petal);
+    }
+    var core = document.createElement('b');
+    wrap.appendChild(core);
+
+    document.body.appendChild(wrap);
+    setTimeout(function () {
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    }, 1000);
+  }
+
+  function hideIntro() {
+    if (el.intro && !el.intro.classList.contains('is-hidden')) {
+      el.intro.classList.add('is-hidden');
+      report('intro_dismissed', {});
+    }
+  }
+
+  function showIntro() {
+    if (el.intro) el.intro.classList.remove('is-hidden');
   }
 
   /* ------------------------------------------------------------- lifecycle */
@@ -87,6 +124,10 @@
         '<div class="wordbar" data-wordbar><span class="wordbar__text" data-word></span></div>',
         '<div class="wheel" data-wheel>',
           '<svg class="wheel__trail" data-trail viewBox="0 0 100 100" preserveAspectRatio="none"></svg>',
+          '<div class="intro is-hidden" data-intro>',
+            '<div class="intro__pulse"></div>',
+            '<div class="intro__text">Swipe or tap the letters</div>',
+          '</div>',
         '</div>',
         '<div class="controls">',
           '<button class="btn btn--ghost" data-shuffle type="button">Shuffle</button>',
@@ -110,6 +151,7 @@
     el.wordbar = m.querySelector('[data-wordbar]');
     el.wheel = m.querySelector('[data-wheel]');
     el.trail = m.querySelector('[data-trail]');
+    el.intro = m.querySelector('[data-intro]');
     el.shuffle = m.querySelector('[data-shuffle]');
     el.undo = m.querySelector('[data-undo]');
     el.submit = m.querySelector('[data-submit]');
@@ -169,6 +211,10 @@
 
     if (cb.onProgress) cb.onProgress(progress);
     renderAll();
+    // First-ever level: point at the letters instead of assuming the player
+    // guesses the swipe gesture. Onboarding is where portal retention is won
+    // or lost, and it costs nothing to dismiss.
+    if (deps.showIntro) showIntro(); else hideIntro();
     report('level_start', {
       level: level,
       mode: mode,
@@ -333,6 +379,7 @@
     el.wheel.addEventListener('pointerdown', function (ev) {
       if (!S || S.busy || S.finished) return;
       ev.preventDefault();
+      hideIntro();
       dragging = true;
       S.selection = [];
       if (WB.audio) WB.audio.unlock();
@@ -403,6 +450,7 @@
 
   function submit() {
     if (!S || S.busy || S.finished) return;
+    hideIntro();
     var word = currentWord();
     if (word.length < MIN_WORD) { clearSelection(); return; }
 
@@ -412,7 +460,8 @@
 
     if (S.found[word] || S.bonusFound[word]) { rejectWord(word, 'already_found'); return; }
 
-    if (S.puzzle.words.indexOf(word) !== -1) {
+    var idx = S.puzzle.words.indexOf(word);
+    if (idx !== -1) {
       S.found[word] = true;
       var gain = 10 * word.length;
       addCoins(gain);
@@ -420,6 +469,12 @@
       clearSelection();
       renderSlots();
       renderHud();
+      // Bloom out of the slot that just filled — the reward moment.
+      var slotEl = el.slots.children[idx];
+      if (slotEl) {
+        slotEl.classList.add('slot--bloom');
+        bloomBurst(slotEl, S.level + ':' + word, word.length * 2);
+      }
       report('word_found', { word: word, level: S.level, mode: S.mode, letters: word.length, elapsedMs: Date.now() - S.startedAt });
       if (cb.onWordFound) cb.onWordFound(word, false);
       checkComplete();
@@ -430,6 +485,7 @@
       S.bonusFound[word] = true;
       addCoins(15);
       if (WB.audio) WB.audio.bonus();
+      bloomBurst(el.wordbar, 7, 7);
       clearSelection();
       renderBonus();
       report('bonus_found', { word: word, level: S.level, mode: S.mode });

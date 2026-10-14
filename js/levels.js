@@ -99,17 +99,11 @@
   }
 
   /**
-   * Stable string hash — used to pick the daily puzzle deterministically
-   * so every player in every timezone-agnostic build sees the same board.
+   * Stable string hash — used to pick the daily puzzle deterministically so
+   * every player sees the same board. Delegates to the shared implementation
+   * in js/hash.js (a local FNV copy here produced a badly skewed daily picker).
    */
-  function hash(str) {
-    var h = 2166136261;
-    for (var i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = (h * 16777619) >>> 0;
-    }
-    return h >>> 0;
-  }
+  var hash = root.WordBloom.hash32;
 
   function ymd(date) {
     var d = date || new Date();

@@ -8,14 +8,14 @@
    =========================================================================== */
 
 :root {
-  --bg: #0e1a18;
+  --bg: #0c1613;
   --bg-2: #13241f;
-  --panel: #172a24;
-  --panel-2: #1d332c;
+  --panel: #16261f;
+  --panel-2: #1d332b;
   --ink: #eef4f0;
   --ink-dim: #8fa8a0;
-  --tile: #f2ecdd;
-  --tile-ink: #17241f;
+  --tile: #f4efe2;
+  --tile-ink: #16241f;
   --accent: #3ddc97;
   --accent-2: #7ef0bb;
   --coin: #f5b843;
@@ -23,6 +23,8 @@
   --line: rgba(255, 255, 255, 0.08);
   --radius: 16px;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --petal: #f472b6;
+  --petal-core: #fbbf24;
 }
 
 * { box-sizing: border-box; }
@@ -35,7 +37,7 @@ html, body {
 }
 
 body {
-  background: radial-gradient(120% 90% at 50% 0%, #16302a 0%, var(--bg) 60%);
+  background: radial-gradient(120% 90% at 50% 0%, #17332b 0%, var(--bg) 62%);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -44,6 +46,19 @@ body {
   justify-content: center;
   align-items: stretch;
   min-height: 100%;
+}
+
+/* Atmospheric wash. Cheap, adds depth, and stops the flat "generated app"
+   look that portals flag as prototype-quality. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(120% 80% at 50% -12%, rgba(61, 220, 151, 0.11), transparent 58%),
+    radial-gradient(90% 60% at 50% 112%, rgba(61, 220, 151, 0.06), transparent 66%);
 }
 
 body.is-ad { /* pause decorative motion while an ad plays */
@@ -57,6 +72,7 @@ body.is-ad { /* pause decorative motion while an ad plays */
   display: flex;
   flex-direction: column;
   position: relative;
+  z-index: 1;
 }
 
 .screen { flex: 1; display: flex; flex-direction: column; }
@@ -64,11 +80,112 @@ body.is-ad { /* pause decorative motion while an ad plays */
 
 /* ------------------------------------------------------------------- home */
 
-.home { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 22px; text-align: center; }
+.home {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  overflow-y: auto;
+  padding: 4px 0;
+}
 
-.logo { font-size: clamp(30px, 10vw, 44px); font-weight: 800; letter-spacing: -0.02em; margin: 0; }
-.logo span { color: var(--accent); }
-.tagline { color: var(--ink-dim); margin: -14px 0 0; font-size: 14px; }
+.logo { position: relative; font-size: clamp(30px, 10vw, 44px); font-weight: 850; letter-spacing: -0.025em; margin: 0; }
+.logo__bloom {
+  background: linear-gradient(100deg, var(--accent-2), var(--accent) 55%, #2fbf83);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Soft aurora behind the wordmark. */
+.logo::after {
+  content: '';
+  position: absolute;
+  left: 50%; top: 55%;
+  width: 124%; height: 150%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(61, 220, 151, 0.17), transparent 72%);
+  z-index: -1;
+  pointer-events: none;
+}
+.tagline { color: var(--ink-dim); margin: -12px 0 0; font-size: 13.5px; }
+
+/* ---------------------------------------------------------------- garden */
+
+.garden {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 15px 12px 11px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(0, 0, 0, 0.22));
+  overflow: hidden;
+}
+/* Soil gradient so the bed reads as ground, not as a container. */
+.garden::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 30px;
+  background: linear-gradient(180deg, rgba(120, 84, 48, 0), rgba(120, 84, 48, 0.22));
+  pointer-events: none;
+}
+.garden__bed {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  min-height: 34px;
+}
+.garden__slot {
+  width: 26px;
+  height: 32px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.garden__slot--grown { animation: flowerIn 0.55s cubic-bezier(0.2, 1.35, 0.4, 1) backwards; }
+@keyframes flowerIn {
+  from { opacity: 0; transform: translateY(7px) scale(0.35); }
+}
+.garden__sprout {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.075);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.035);
+  margin-bottom: 3px;
+}
+.garden__label {
+  position: relative;
+  z-index: 1;
+  margin-top: 9px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--ink-dim);
+}
+.garden__label b { color: var(--accent-2); }
+
+/* A flower: five petals + a centre, pure CSS, no images. */
+.flower { position: relative; display: block; }
+.flower i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
+  background: var(--p);
+  box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.14);
+}
+.flower b {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.28);
+}
+.flower--full { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.32)); }
 
 .stats {
   display: grid;
@@ -168,6 +285,14 @@ body.is-ad { /* pause decorative motion while an ad plays */
    see exactly what the reward bought. */
 .slot:not(.slot--found) .cell--on { background: rgba(245, 184, 67, 0.18); color: var(--coin); border-color: rgba(245,184,67,0.4); }
 
+/* The reward moment: the slot springs as its last letter lands. */
+.slot--bloom { animation: slotPop 0.46s cubic-bezier(0.2, 1.4, 0.4, 1); }
+@keyframes slotPop {
+  0% { transform: scale(0.88); }
+  55% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
 .bonus { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; min-height: 18px; }
 .bonus__label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-dim); align-self: center; }
 .bonus__word { font-size: 11px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--accent-2); }
@@ -221,7 +346,11 @@ body.is-ad { /* pause decorative motion while an ad plays */
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22), 0 6px 16px rgba(0, 0, 0, 0.28);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.24),
+    0 6px 16px rgba(0, 0, 0, 0.3),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.05),
+    inset 0 2px 2px rgba(255, 255, 255, 0.9);
   transition: transform 0.09s ease, background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
   padding: 0;
 }
@@ -230,6 +359,86 @@ body.is-ad { /* pause decorative motion while an ad plays */
   color: #06231a;
   transform: translate(-50%, -50%) scale(1.12);
   box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.28), 0 6px 18px rgba(61, 220, 151, 0.35);
+}
+
+/* ------------------------------------------------------------ bloom burst */
+
+/* Petals thrown from a completed word. Fixed-position and pointer-events:none
+   so it can never intercept a tap or affect layout. */
+.bloom-burst {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 70;
+}
+.bloom-burst i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
+  background: var(--p, var(--petal));
+  animation: petalOut 0.8s cubic-bezier(0.15, 0.7, 0.3, 1) forwards;
+}
+@keyframes petalOut {
+  0%   { opacity: 1; transform: rotate(var(--rot, 0deg)) translateY(0) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--rot, 0deg)) translateY(calc(-1 * var(--dist, 30px))) scale(0.35); }
+}
+.bloom-burst b {
+  position: absolute;
+  left: 0; top: 0;
+  width: 9px; height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: var(--c, var(--petal-core));
+  animation: coreOut 0.55s ease-out forwards;
+}
+@keyframes coreOut {
+  0%   { opacity: 1; transform: scale(0.4); }
+  100% { opacity: 0; transform: scale(2.1); }
+}
+
+/* ------------------------------------------------------------- onboarding */
+
+.intro {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+/* Ring centres on the letters; the label sits below the wheel so it never
+   covers a tile the player is being asked to touch. */
+.intro__pulse {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 48%;
+  height: 48%;
+  border-radius: 50%;
+  border: 2px dashed rgba(61, 220, 151, 0.55);
+  animation: introPulse 2.3s ease-in-out infinite;
+}
+@keyframes introPulse {
+  0%, 100% { transform: scale(0.88); opacity: 0.45; }
+  50%      { transform: scale(1.07); opacity: 1; }
+}
+.intro__text {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+  background: rgba(9, 21, 17, 0.9);
+  border: 1px solid rgba(61, 220, 151, 0.3);
+  padding: 8px 15px;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.36);
 }
 
 /* --------------------------------------------------------------- controls */
@@ -265,6 +474,21 @@ body.is-ad { /* pause decorative motion while an ad plays */
 .stars { display: flex; justify-content: center; gap: 6px; margin-bottom: 8px; }
 .star { font-size: 30px; color: rgba(255, 255, 255, 0.13); line-height: 1; }
 .star--on { color: var(--coin); text-shadow: 0 3px 10px rgba(245, 184, 67, 0.4); }
+
+/* The flower just earned, centre stage on the completion sheet. */
+.sheet__bloom {
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.sheet__bloom .flower {
+  animation: bloomIn 0.62s cubic-bezier(0.2, 1.5, 0.4, 1) backwards;
+}
+@keyframes bloomIn {
+  from { opacity: 0; transform: rotate(-8deg) scale(0.35); }
+}
 
 .rows { display: flex; flex-direction: column; gap: 1px; margin: 12px 0; }
 .row { display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13.5px; background: rgba(255,255,255,0.03); }
@@ -327,6 +551,13 @@ body.is-ad { /* pause decorative motion while an ad plays */
   .tagline { margin-top: -8px; font-size: 12px; }
   .stats { padding: 9px 8px; }
   .stat__n { font-size: 16px; }
+
+  /* The garden is the hero on desktop widths, so give it room and keep it
+     from stretching into an awkward single row. */
+  .garden { padding: 10px 12px 8px; }
+  .garden__bed { gap: 3px; min-height: 28px; }
+  .garden__slot { width: 21px; height: 26px; }
+  .garden__label { margin-top: 6px; font-size: 10.5px; }
 
   .game {
     display: grid;

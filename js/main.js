@@ -23,6 +23,7 @@
   var audio = WB.audio;
 
   var MIDGAME_EVERY_N_LEVELS = 3;
+  var GARDEN_CAPACITY = 14;
 
   /* Flipped to false by tools/build.mjs for production builds. Gates the dev
      URL parameters (?autostart / ?solve / ?ad) so the shipped build cannot be
@@ -131,8 +132,22 @@
    */
   function applyDevParams() {
     var q = String(root.location.search || '');
-    if (!/[?&](autostart|daily|ad)=/.test(q)) return;
+    if (!/[?&](autostart|daily|ad|garden|intro|solve)=/.test(q)) return;
     root.setTimeout(function () {
+      // ?garden=N  seed N grown flowers (screenshot / QA of the garden)
+      var gm = q.match(/[?&]garden=(\d+)/);
+      if (gm) {
+        var n = parseInt(gm[1], 10);
+        progress.garden = [];
+        for (var gi = 0; gi < n; gi++) {
+          progress.garden.push({ level: (gi * 7 + 1) % 60 + 1, at: storage.todayKey() });
+        }
+        save();
+        renderHome();
+      }
+      // ?intro=1  force the first-run coach mark
+      if (/[?&]intro=/.test(q)) { progress.seenIntro = false; save(); }
+
       if (/[?&]daily=/.test(q)) startLevel(1, 'daily', null);
       else if (/[?&]autostart=/.test(q)) startLevel(progress.level, 'level', null);
       if (/[?&]ad=demo/.test(q)) ads.showRewarded();
@@ -241,6 +256,7 @@
     dom.statCoins = document.getElementById('stat-coins');
     dom.statStreak = document.getElementById('stat-streak');
     dom.statSession = document.getElementById('stat-session');
+    dom.garden = document.getElementById('garden');
     dom.btnPlay = document.getElementById('btn-play');
     dom.btnDaily = document.getElementById('btn-daily');
     dom.btnStats = document.getElementById('btn-stats');
@@ -278,6 +294,7 @@
     dom.home.classList.remove('is-hidden');
     dom.game.classList.add('is-hidden');
     updateHomeStats();
+    renderGarden();
 
     var resume = progress.currentLevel;
     dom.playLabel.textContent = resume && resume.mode === 'level'
@@ -302,13 +319,33 @@
   }
   setInterval(updateHomeStats, 1000);
 
+  /**
+   * The garden is the return hook: an unfinished bed is a visible reason to
+   * come back, and it is what makes this game recognisably not a generic
+   * letter grid.
+   */
+  function renderGarden() {
+    if (!dom.garden || !WB.garden) return;
+    WB.garden.render(dom.garden, progress.garden, GARDEN_CAPACITY);
+  }
+
+  function plantFlower(level) {
+    if (!Array.isArray(progress.garden)) progress.garden = [];
+    progress.garden.push({ level: level, at: storage.todayKey() });
+    telemetry.track('flower_planted', { level: level, total: progress.garden.length });
+  }
+
   function startLevel(level, mode, restore) {
     dom.home.classList.add('is-hidden');
     dom.game.classList.remove('is-hidden');
     screen = 'game';
+    // Point at the letters on the very first ever level, then never again.
+    var showIntro = !progress.seenIntro && mode === 'level' && !restore;
+    if (showIntro) { progress.seenIntro = true; save(); }
     WB.game.startLevel(level, mode, progress, {
       levels: levels,
-      restore: restore || null
+      restore: restore || null,
+      showIntro: showIntro
     });
   }
 
@@ -327,6 +364,7 @@
       progress.level = Math.max(progress.level, result.level + 1);
       progress.levelsCleared = (progress.levelsCleared || 0) + 1;
       progress.currentLevel = null;
+      plantFlower(result.level);
     } else {
       var today = storage.todayKey();
       if (progress.lastDailyKey !== today) {
@@ -364,6 +402,7 @@
 
     openOverlay(
       '<div class="sheet">' +
+        '<div class="sheet__bloom" data-bloom></div>' +
         '<div class="stars">' + starHtml + '</div>' +
         '<h2>' + (result.mode === 'daily' ? 'Daily complete!' : 'Level ' + result.level + ' complete') + '</h2>' +
         '<div class="rows">' + html + '</div>' +
@@ -372,6 +411,13 @@
         '</button>' +
       '</div>',
       function (overlay) {
+        // Show the flower this level just grew, big and centre stage.
+        var host = overlay.querySelector('[data-bloom]');
+        if (host && WB.garden) {
+          var big = WB.garden.flowerEl(result.level, true);
+          big.style.transform = 'rotate(-8deg) scale(2.5)';
+          host.appendChild(big);
+        }
         overlay.querySelector('[data-next]').addEventListener('click', function () {
           closeOverlay();
           if (result.mode === 'daily') { renderHome(); return; }
