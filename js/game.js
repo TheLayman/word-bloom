@@ -386,52 +386,91 @@
   /* ------------------------------------------------------------------ input */
 
   function bindInput() {
-    var dragging = false;
+    var dragging = false;     // a press is in progress
+    var isDrag = false;       // that press turned into a swipe
+    var downIdx = null;       // tile under the initial press
+    var downX = 0, downY = 0;
+    var DRAG_THRESHOLD = 8;   // px of travel before a press becomes a swipe
 
-    function tileFromPoint(clientX, clientY) {
+    function tileIndexFromPoint(clientX, clientY) {
       var node = document.elementFromPoint(clientX, clientY);
       if (!node) return null;
       var t = node.closest ? node.closest('.tile') : null;
-      return (t && el.wheel.contains(t)) ? t : null;
+      if (!t || !el.wheel.contains(t)) return null;
+      return Number(t.getAttribute('data-idx'));
     }
 
-    function addTile(tile) {
-      var idx = Number(tile.getAttribute('data-idx'));
-      if (S.selection.indexOf(idx) !== -1) return;   // no tile reuse
+    function addIdx(idx) {
+      if (idx === null || S.selection.indexOf(idx) !== -1) return false;
       S.selection.push(idx);
       if (WB.audio) WB.audio.tap();
       renderSelection();
+      return true;
     }
 
+    // TAP and SWIPE are different gestures and must not share one code path:
+    //   swipe -> builds a word from scratch, submits on release
+    //   tap   -> adds or removes ONE letter, leaving Submit in control
+    // The previous version cleared the selection on every pointerdown, so
+    // tapping a second letter wiped the first, Submit saw a single letter, and
+    // nothing happened. That is the bug a player reported by hand.
     el.wheel.addEventListener('pointerdown', function (ev) {
       if (!S || S.busy || S.finished) return;
       ev.preventDefault();
       hideIntro();
-      dragging = true;
-      S.selection = [];
       if (WB.audio) WB.audio.unlock();
-      var t = tileFromPoint(ev.clientX, ev.clientY);
-      if (t) addTile(t);
-      renderSelection();
+      dragging = true;
+      isDrag = false;
+      downIdx = tileIndexFromPoint(ev.clientX, ev.clientY);
+      downX = ev.clientX;
+      downY = ev.clientY;
     });
 
     root.addEventListener('pointermove', function (ev) {
       if (!dragging || !S || S.busy) return;
-      var t = tileFromPoint(ev.clientX, ev.clientY);
-      if (t) addTile(t);
+      if (!isDrag) {
+        var dx = ev.clientX - downX;
+        var dy = ev.clientY - downY;
+        if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+        // Became a swipe: start a fresh word from the tile that was pressed.
+        isDrag = true;
+        S.selection = [];
+        if (downIdx !== null) {
+          S.selection.push(downIdx);
+          if (WB.audio) WB.audio.tap();
+        }
+        renderSelection();
+      }
+      addIdx(tileIndexFromPoint(ev.clientX, ev.clientY));
     });
 
     root.addEventListener('pointerup', function () {
       if (!dragging || !S) return;
       dragging = false;
-      // A drag of a full word submits immediately; short taps accumulate so
-      // players can build a word letter by letter and press Submit.
-      if (currentWord().length >= MIN_WORD) submit();
-      else renderSelection();
+
+      if (isDrag) {
+        if (currentWord().length >= MIN_WORD) submit();
+        else renderSelection();
+      } else if (!S.busy && !S.finished && downIdx !== null) {
+        // A tap toggles, so pressing the same letter again removes it.
+        var pos = S.selection.indexOf(downIdx);
+        if (pos === -1) {
+          S.selection.push(downIdx);
+          if (WB.audio) WB.audio.tap();
+        } else {
+          S.selection.splice(pos, 1);
+        }
+        renderSelection();
+      }
+
+      isDrag = false;
+      downIdx = null;
     });
 
     root.addEventListener('pointercancel', function () {
       dragging = false;
+      isDrag = false;
+      downIdx = null;
       if (S && !S.busy) renderSelection();
     });
 
@@ -452,6 +491,7 @@
       }
     });
   }
+
 
   function undo() {
     if (!S || S.busy) return;
@@ -479,7 +519,18 @@
     if (!S || S.busy || S.finished) return;
     hideIntro();
     var word = currentWord();
-    if (word.length < MIN_WORD) { clearSelection(); return; }
+    if (word.length < MIN_WORD) {
+      // Do NOT silently discard the letters — that is indistinguishable from a
+      // broken button, which is exactly how it was reported. Say why, and keep
+      // the selection so they can add more.
+      if (WB.audio) WB.audio.invalid();
+      el.wordbar.classList.add('wordbar--bad');
+      setTimeout(function () { el.wordbar.classList.remove('wordbar--bad'); }, 380);
+      say('Pick at least three letters, then press Submit.');
+      report('submit_too_short', { letters: word.length, level: S.level });
+      renderSelection();
+      return;
+    }
 
     // Because selection is tile-based, the word is always spellable; the only
     // question is whether it is a real word.
